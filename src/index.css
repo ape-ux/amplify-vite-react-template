@@ -1,65 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --amplify-colors-brand-primary-10: #1a365d;
+  --amplify-colors-brand-primary-80: #3b82f6;
+  --amplify-colors-brand-primary-90: #2563eb;
+  --amplify-colors-brand-primary-100: #1d4ed8;
+}
+
+/* Dark mode Amplify UI customization */
+[data-amplify-authenticator] {
+  --amplify-components-authenticator-router-background-color: rgba(31, 41, 55, 0.8);
+  --amplify-components-authenticator-router-border-color: rgba(55, 65, 81, 0.5);
+  --amplify-components-button-primary-background-color: #3b82f6;
+  --amplify-components-button-primary-hover-background-color: #2563eb;
+  --amplify-components-fieldcontrol-border-color: #4b5563;
+  --amplify-components-fieldcontrol-focus-border-color: #3b82f6;
+  --amplify-components-text-color: #f9fafb;
+  --amplify-components-tabs-item-color: #9ca3af;
+  --amplify-components-tabs-item-active-color: #f9fafb;
+  --amplify-components-heading-color: #f9fafb;
+  --amplify-components-fieldcontrol-color: #f9fafb;
+  --amplify-components-fieldcontrol-background-color: rgba(55, 65, 81, 0.5);
+}
+
 body {
-  margin: 0;
-  background: linear-gradient(180deg, rgb(117, 81, 194), rgb(255, 255, 255));
-  display: flex;
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  height: 100vh;
-  width: 100vw;
-  justify-content: center;
-  align-items: center;
-}
-
-main {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-  color: white;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-ul {
-  padding-inline-start: 0;
-  margin-block-start: 0;
-  margin-block-end: 0;
-  list-style-type: none;
-  display: flex;
-  flex-direction: column;
-  margin: 8px 0;
-  border: 1px solid black;
-  gap: 1px;
-  background-color: black;
-  border-radius: 8px;
-  overflow: auto;
-}
-
-li {
-  background-color: white;
-  padding: 8px;
-}
-
-li:hover {
-  background: #dadbf9;
-}
-
-a {
-  font-weight: 800;
-  text-decoration: none;
+  background: linear-gradient(135deg, #111827 0%, #1f2937 50%, #111827 100%);
+  min-height: 100vh;
 }

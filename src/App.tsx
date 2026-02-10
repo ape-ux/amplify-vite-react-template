@@ -1,40 +1,41 @@
-import { useEffect, useState } from "react";
-import type { Schema } from "../amplify/data/resource";
-import { generateClient } from "aws-amplify/data";
-
-const client = generateClient<Schema>();
+import { Authenticator } from '@aws-amplify/ui-react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import '@aws-amplify/ui-react/styles.css'
+import DashboardLayout from './layouts/DashboardLayout'
+import Dashboard from './pages/Dashboard'
+import Quotes from './pages/Quotes'
+import Shipments from './pages/Shipments'
+import Bookings from './pages/Bookings'
+import Containers from './pages/Containers'
+import Documents from './pages/Documents'
+import Dispatch from './pages/Dispatch'
+import Agents from './pages/Agents'
+import Analytics from './pages/Analytics'
+import Settings from './pages/Settings'
 
 function App() {
-  const [todos, setTodos] = useState<Array<Schema["Todo"]["type"]>>([]);
-
-  useEffect(() => {
-    client.models.Todo.observeQuery().subscribe({
-      next: (data) => setTodos([...data.items]),
-    });
-  }, []);
-
-  function createTodo() {
-    client.models.Todo.create({ content: window.prompt("Todo content") });
-  }
-
   return (
-    <main>
-      <h1>My todos</h1>
-      <button onClick={createTodo}>+ new</button>
-      <ul>
-        {todos.map((todo) => (
-          <li key={todo.id}>{todo.content}</li>
-        ))}
-      </ul>
-      <div>
-        🥳 App successfully hosted. Try creating a new todo.
-        <br />
-        <a href="https://docs.amplify.aws/react/start/quickstart/#make-frontend-updates">
-          Review next step of this tutorial.
-        </a>
-      </div>
-    </main>
-  );
+    <Authenticator>
+      {({ signOut, user }) => (
+        <BrowserRouter basename="/ape-ux">
+          <DashboardLayout user={user} signOut={signOut}>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/quotes" element={<Quotes />} />
+              <Route path="/shipments" element={<Shipments />} />
+              <Route path="/bookings" element={<Bookings />} />
+              <Route path="/containers" element={<Containers />} />
+              <Route path="/documents" element={<Documents />} />
+              <Route path="/dispatch" element={<Dispatch />} />
+              <Route path="/agents" element={<Agents />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/settings" element={<Settings />} />
+            </Routes>
+          </DashboardLayout>
+        </BrowserRouter>
+      )}
+    </Authenticator>
+  )
 }
 
-export default App;
+export default App
