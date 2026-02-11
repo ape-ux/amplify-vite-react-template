@@ -4,14 +4,41 @@
 
 const XANO_BASE = import.meta.env.VITE_XANO_BASE_URL || 'https://xjlt-4ifj-k7qu.n7e.xano.io'
 
-// API Groups - VERIFIED from Flow247 production
+// API Groups - VERIFIED from Xano Meta API (2026-02-11)
 const API_GROUPS = {
+  // Core Platform
   main: 'api:QC35j52Y',           // Auth, quotes, bookings, shipments
-  agents: 'api:E1Skvg8o',         // Agents, customer profile, documents
+  agents: 'api:E1Skvg8o',         // Agents, customer profile, documents, TAI
   account: 'api:dqA59R7v',        // Account details, team members
   logs: 'api:Dg-LSQY9',           // Logs, user events
   chat: 'api:AKAonta6',           // Agent chat/conversation
-  stg: 'api:M6Xz5_I1',            // STG container tracking
+  dashboard: 'api:I5SJFe7I',      // Dashboard KPIs
+  rates: 'api:WXXqvI0z',          // Rate management
+  documents: 'api:LFUW4MhX',      // Documents
+  freight: 'api:RmiAEq2d',        // Core freight operations
+  
+  // STG Container Tracking
+  stg: 'api:lt8FkLwE',            // STG Arrival Tracking (primary)
+  stgOps: 'api:M6Xz5_I1',         // STG Operations
+  stgFinancials: 'api:MDtcogTI',  // STG Financials
+  
+  // Carrier API Groups (Rate Shopping)
+  tai: 'api:E1Skvg8o',            // TAI is in main Shipping group
+  echo: 'api:XBMF85vX',           // Echo Global Logistics
+  chr: 'api:amLqxuBm',            // CH Robinson
+  tql: 'api:5QFqgmDM',            // TQL
+  estes: 'api:Z-Cm8uxf',          // Estes Express
+  exfreight: 'api:WxLFCQzN',      // ExFreight Complete
+  amass: 'api:t1nPOzUD',          // Amass LCL Rates
+  maersk: 'api:IFuQjYHg',         // Maersk
+  one: 'api:djoDpxJL',            // ONE (lcl group)
+  xenon: 'api:8GqJxdlq',          // Xenon Drayage
+  // shipprimus: 'api:TBD',       // ShipPrimus (being created)
+  
+  // Integrations
+  stripe: 'api:UQuTJ3vx',         // Stripe Payments
+  sendgrid: 'api:5e9BgwVw',       // SendGrid Email
+  googleMaps: 'api:oCaVtmi7',     // Google Maps/Geocoding
 }
 
 let authToken: string | null = null
@@ -222,6 +249,136 @@ export const getSailingSchedules = async (params?: any) => {
 export const getLocations = async (search?: string) => {
   const query = search ? `?search=${encodeURIComponent(search)}` : ''
   return xanoRequest<any[]>(`/locations${query}`)
+}
+
+// =====================
+// RATE SHOPPING (Multi-Carrier)
+// =====================
+
+export interface RateShopRequest {
+  origin: {
+    city: string
+    state: string
+    zipcode: string
+    country?: string
+  }
+  destination: {
+    city: string
+    state: string
+    zipcode: string
+    country?: string
+  }
+  freight_items: Array<{
+    qty: number
+    weight: number
+    weight_type?: 'each' | 'total'
+    length?: number
+    width?: number
+    height?: number
+    dim_type?: 'PLT' | 'BOX' | 'CRATE'
+    class?: number
+    commodity?: string
+  }>
+  pickup_date?: string
+  accessorials?: string[]
+  carriers?: ('tai' | 'echo' | 'chr' | 'tql' | 'estes' | 'exfreight' | 'amass' | 'maersk' | 'one' | 'xenon')[]
+}
+
+// Get rates from TAI
+export const getTaiRates = async (request: RateShopRequest) => {
+  return xanoRequest('/rates/shop', 'POST', request, API_GROUPS.tai)
+}
+
+// Get rates from Echo Global
+export const getEchoRates = async (request: RateShopRequest) => {
+  return xanoRequest('/get-rates', 'POST', request, API_GROUPS.echo)
+}
+
+// Get rates from CH Robinson
+export const getChrRates = async (request: RateShopRequest) => {
+  return xanoRequest('/rate-quote', 'POST', request, API_GROUPS.chr)
+}
+
+// Get rates from TQL
+export const getTqlRates = async (request: RateShopRequest) => {
+  return xanoRequest('/rate', 'POST', request, API_GROUPS.tql)
+}
+
+// Get rates from Estes
+export const getEstesRates = async (request: RateShopRequest) => {
+  return xanoRequest('/rate-quote', 'POST', request, API_GROUPS.estes)
+}
+
+// Get rates from ExFreight (Ocean)
+export const getExfreightRates = async (request: RateShopRequest) => {
+  return xanoRequest('/rates', 'POST', request, API_GROUPS.exfreight)
+}
+
+// Get rates from Amass LCL
+export const getAmassRates = async (request: RateShopRequest) => {
+  return xanoRequest('/quote', 'POST', request, API_GROUPS.amass)
+}
+
+// Get rates from Maersk
+export const getMaerskRates = async (request: RateShopRequest) => {
+  return xanoRequest('/rates', 'POST', request, API_GROUPS.maersk)
+}
+
+// Get rates from ONE
+export const getOneRates = async (request: RateShopRequest) => {
+  return xanoRequest('/rates', 'POST', request, API_GROUPS.one)
+}
+
+// Get rates from Xenon (Drayage)
+export const getXenonRates = async (request: RateShopRequest) => {
+  return xanoRequest('/rate', 'POST', request, API_GROUPS.xenon)
+}
+
+// Unified rate shopping - calls all enabled carriers in parallel
+export const shopRates = async (request: RateShopRequest) => {
+  const enabledCarriers = request.carriers || ['tai', 'echo', 'chr', 'estes']
+  
+  const carrierFunctions: Record<string, (req: RateShopRequest) => Promise<any>> = {
+    tai: getTaiRates,
+    echo: getEchoRates,
+    chr: getChrRates,
+    tql: getTqlRates,
+    estes: getEstesRates,
+    exfreight: getExfreightRates,
+    amass: getAmassRates,
+    maersk: getMaerskRates,
+    one: getOneRates,
+    xenon: getXenonRates,
+  }
+  
+  const promises = enabledCarriers.map(async (carrier) => {
+    try {
+      const fn = carrierFunctions[carrier]
+      if (!fn) return { carrier, success: false, error: 'Unknown carrier' }
+      const rates = await fn(request)
+      return { carrier, success: true, rates }
+    } catch (error: any) {
+      return { carrier, success: false, error: error.message }
+    }
+  })
+  
+  const results = await Promise.allSettled(promises)
+  
+  return results.map((r, i) => 
+    r.status === 'fulfilled' ? r.value : { carrier: enabledCarriers[i], success: false, error: 'Request failed' }
+  )
+}
+
+// =====================
+// DASHBOARD (api:I5SJFe7I)
+// =====================
+
+export const getDashboardStats = async () => {
+  return xanoRequest<any>('/stats', 'GET', undefined, API_GROUPS.dashboard)
+}
+
+export const getDashboardKPIs = async () => {
+  return xanoRequest<any>('/kpis', 'GET', undefined, API_GROUPS.dashboard)
 }
 
 // =====================
