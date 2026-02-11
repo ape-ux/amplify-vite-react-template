@@ -46,9 +46,21 @@ export default function Shipments() {
         offset: (currentPage - 1) * PAGE_SIZE,
       })
 
-      const shipmentsArr = Array.isArray(response) ? response : []
-      setShipments(shipmentsArr)
-      setTotalCount(shipmentsArr.length)
+      // Handle both array and {items, total} response formats
+      let shipmentsData: Shipment[] = []
+      let total = 0
+      
+      if (Array.isArray(response)) {
+        shipmentsData = response
+        total = response.length
+      } else if (response && typeof response === 'object') {
+        const resp = response as { items?: Shipment[]; total?: number }
+        shipmentsData = resp.items || []
+        total = resp.total || shipmentsData.length
+      }
+      
+      setShipments(shipmentsData)
+      setTotalCount(total)
     } catch (error) {
       console.error('Failed to load shipments:', error)
       setShipments([])

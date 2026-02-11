@@ -211,17 +211,27 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 /**
  * Get recent shipments for dashboard
  */
-export async function getRecentShipments(limit = 5) {
-  return getShipments({ limit })
+export async function getRecentShipments(limit = 5): Promise<{ items: any[] }> {
+  try {
+    const result = await getShipments({ limit }) as any
+    // Handle both array and {items} response
+    if (Array.isArray(result)) {
+      return { items: result }
+    }
+    return { items: result?.items || [] }
+  } catch {
+    return { items: [] }
+  }
 }
 
 /**
  * Get LFD alerts for dashboard
  */
-export async function getLFDAlerts() {
+export async function getLFDAlerts(): Promise<any[]> {
   try {
-    const containers = await getContainers()
-    if (!Array.isArray(containers)) return []
+    const result = await getContainers() as any
+    // Handle both array and {items} response
+    const containers = Array.isArray(result) ? result : (result?.items || [])
     return containers.filter((c: any) => 
       ['warning', 'critical', 'overdue'].includes(c.risk_level)
     )
@@ -252,7 +262,12 @@ export interface RateShopParams {
  * Shop for freight rates
  */
 export async function shopRates(params: RateShopParams) {
-  return getSpotRates(params)
+  return getSpotRates({
+    origin_zip: params.origin_zip,
+    destination_zip: params.destination_zip,
+    weight_lbs: params.weight_lbs,
+    freight_class: params.freight_class,
+  })
 }
 
 // ============================================
