@@ -1,14 +1,17 @@
 // Xano API Client for FreightFlow Pro
 // Instance: FreightFlowAi (xjlt-4ifj-k7qu)
-// Correct API Base: api:QC35j52Y (from Flow247)
+// CORRECTED: Multiple API groups from Flow247 production code
 
 const XANO_BASE = import.meta.env.VITE_XANO_BASE_URL || 'https://xjlt-4ifj-k7qu.n7e.xano.io'
 
-// API Groups - CORRECTED from Flow247
+// API Groups - VERIFIED from Flow247 production
 const API_GROUPS = {
-  main: 'api:QC35j52Y',           // Main API (auth, quotes, shipments, bookings)
-  agents: 'api:E1Skvg8o',         // AI Agents
-  chat: 'api:AKAonta6',           // Chat/conversation (if exists)
+  main: 'api:QC35j52Y',           // Auth, quotes, bookings, shipments
+  agents: 'api:E1Skvg8o',         // Agents, customer profile, documents
+  account: 'api:dqA59R7v',        // Account details, team members
+  logs: 'api:Dg-LSQY9',           // Logs, user events
+  chat: 'api:AKAonta6',           // Agent chat/conversation
+  stg: 'api:M6Xz5_I1',            // STG container tracking
 }
 
 let authToken: string | null = null
@@ -35,7 +38,7 @@ const xanoRequest = async <T = any>(
   endpoint: string,
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'GET',
   body?: object,
-  customBase?: string
+  apiGroup: string = API_GROUPS.main
 ): Promise<T> => {
   const token = getXanoAuthToken()
   const headers: Record<string, string> = {
@@ -45,8 +48,10 @@ const xanoRequest = async <T = any>(
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const base = customBase || `${XANO_BASE}/${API_GROUPS.main}`
-  const url = `${base}${endpoint}`
+  // Handle full URLs vs relative endpoints
+  const url = endpoint.startsWith('http') 
+    ? endpoint 
+    : `${XANO_BASE}/${apiGroup}${endpoint}`
   
   console.log(`[Xano] ${method} ${url}`)
   
@@ -66,7 +71,7 @@ const xanoRequest = async <T = any>(
 }
 
 // =====================
-// AUTH ENDPOINTS
+// AUTH ENDPOINTS (api:QC35j52Y)
 // =====================
 
 export const login = async (email: string, password: string) => {
@@ -86,7 +91,7 @@ export const signup = async (email: string, password: string, name?: string) => 
 }
 
 export const getMe = async () => {
-  return xanoRequest<{ user: any }>('/auth/me')
+  return xanoRequest<any>('/auth/me')
 }
 
 // Sync Supabase user to Xano
@@ -103,7 +108,19 @@ export const syncUser = async (supabaseUserId: string, email: string, metadata?:
 }
 
 // =====================
-// QUOTES ENDPOINTS
+// CUSTOMER PROFILE (api:E1Skvg8o)
+// =====================
+
+export const getCustomerProfile = async () => {
+  return xanoRequest<any>('/customer/profile', 'GET', undefined, API_GROUPS.agents)
+}
+
+export const updateCustomerProfile = async (data: any) => {
+  return xanoRequest<any>('/customer/profile', 'PATCH', data, API_GROUPS.agents)
+}
+
+// =====================
+// QUOTES ENDPOINTS (api:QC35j52Y)
 // =====================
 
 export const getQuotes = async (filters?: { status?: string; limit?: number }) => {
@@ -122,34 +139,24 @@ export const getQuoteResults = async (quoteId: string) => {
   return xanoRequest<any>(`/v1/quotes/${quoteId}/results`)
 }
 
-export const createQuote = async (quoteData: {
-  origin_zip: string
-  destination_zip: string
-  weight_lbs: number
-  freight_class?: number
-  pallets?: number
-  accessorials?: string[]
-}) => {
+export const createQuote = async (quoteData: any) => {
   return xanoRequest('/v1/quotes', 'POST', quoteData)
 }
 
-// LCL Import Quote
 export const createLclImportQuote = async (data: any) => {
   return xanoRequest('/v1/quotes/lcl/import', 'POST', data)
 }
 
-// LCL Export Quote
 export const createLclExportQuote = async (data: any) => {
   return xanoRequest('/v1/quotes/lcl/export', 'POST', data)
 }
 
-// FCL Quote
 export const createFclQuote = async (data: any) => {
   return xanoRequest('/v1/quotes/fcl', 'POST', data)
 }
 
 // =====================
-// SHIPMENTS ENDPOINTS
+// SHIPMENTS ENDPOINTS (api:QC35j52Y)
 // =====================
 
 export const getShipments = async (filters?: { status?: string; limit?: number }) => {
@@ -173,7 +180,7 @@ export const dispatchShipment = async (shipmentId: string, dispatchData: any) =>
 }
 
 // =====================
-// BOOKINGS ENDPOINTS
+// BOOKINGS ENDPOINTS (api:QC35j52Y)
 // =====================
 
 export const getBookings = async () => {
@@ -196,7 +203,7 @@ export const updateBooking = async (id: string, data: any) => {
 }
 
 // =====================
-// CARRIERS & RATES
+// CARRIERS & RATES (api:QC35j52Y)
 // =====================
 
 export const getCarriers = async () => {
@@ -207,102 +214,172 @@ export const getSpotRates = async (params: any) => {
   return xanoRequest('/offers/spot-rates', 'POST', params)
 }
 
-// =====================
-// OCEAN / SCHEDULES
-// =====================
-
-export const fetchSchedules = async (params: any) => {
-  return xanoRequest('/fetch_and_save_schedules', 'POST', params)
+export const getSailingSchedules = async (params?: any) => {
+  const query = params ? `?${new URLSearchParams(params)}` : ''
+  return xanoRequest<any[]>(`/sailing-schedules${query}`)
 }
 
-export const getOceanProducts = async () => {
-  return xanoRequest<any[]>('/ocean-nap-products')
+export const getLocations = async (search?: string) => {
+  const query = search ? `?search=${encodeURIComponent(search)}` : ''
+  return xanoRequest<any[]>(`/locations${query}`)
 }
 
 // =====================
-// AI AGENTS (Different API Group)
+// AI AGENTS (api:E1Skvg8o)
 // =====================
-
-const agentsBase = `${XANO_BASE}/${API_GROUPS.agents}`
 
 export const getAgents = async () => {
-  return xanoRequest<any[]>('/agents', 'GET', undefined, agentsBase)
+  return xanoRequest<{ success: boolean; agents: any[]; total: number }>('/agents', 'GET', undefined, API_GROUPS.agents)
 }
 
 export const getAgent = async (id: number) => {
-  return xanoRequest<any>(`/agent/${id}`, 'GET', undefined, agentsBase)
+  return xanoRequest<any>(`/agent/${id}`, 'GET', undefined, API_GROUPS.agents)
 }
 
 export const runAgent = async (agentId: number, input: string, context?: object) => {
-  return xanoRequest(`/agent/${agentId}/run`, 'POST', {
-    messages: [{ role: 'user', content: input }],
-    user_context: context,
-  }, agentsBase)
+  const url = `${XANO_BASE}/${API_GROUPS.agents}/agent/${agentId}/run`
+  const token = getXanoAuthToken()
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      messages: [{ role: 'user', content: input }],
+      user_context: context,
+    }),
+  })
+  
+  if (!response.ok) {
+    throw new Error(`Agent run failed: ${response.status}`)
+  }
+  
+  return response.json()
+}
+
+export const streamAgent = async (
+  agentId: number,
+  input: string,
+  onChunk: (chunk: string) => void,
+  context?: object
+) => {
+  const url = `${XANO_BASE}/${API_GROUPS.agents}/agent/${agentId}/stream`
+  const token = getXanoAuthToken()
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      messages: [{ role: 'user', content: input }],
+      user_context: context,
+    }),
+  })
+  
+  const reader = response.body?.getReader()
+  const decoder = new TextDecoder()
+  
+  while (reader) {
+    const { done, value } = await reader.read()
+    if (done) break
+    const chunk = decoder.decode(value)
+    onChunk(chunk)
+  }
 }
 
 // =====================
-// CONTAINERS / STG (if exists)
+// CHAT / CONVERSATIONS (api:AKAonta6)
+// =====================
+
+export const sendAgentMessage = async (message: string) => {
+  return xanoRequest('/agent/message', 'POST', { message }, API_GROUPS.chat)
+}
+
+export const getConversation = async (conversationId: string) => {
+  return xanoRequest<any>(`/agent/conversation/${conversationId}`, 'GET', undefined, API_GROUPS.chat)
+}
+
+export const getConversations = async () => {
+  return xanoRequest<any[]>('/agent/conversations', 'GET', undefined, API_GROUPS.chat)
+}
+
+export const getMessages = async (conversationId: string) => {
+  return xanoRequest<any[]>(`/agent/conversation/${conversationId}/messages`, 'GET', undefined, API_GROUPS.chat)
+}
+
+export const sendMessage = async (conversationId: string, message: string) => {
+  return xanoRequest(`/agent/conversation/${conversationId}/message`, 'POST', { content: message }, API_GROUPS.chat)
+}
+
+// =====================
+// STG CONTAINER TRACKING (api:M6Xz5_I1)
 // =====================
 
 export const getContainers = async () => {
-  // TODO: Verify this endpoint exists
-  return xanoRequest<any[]>('/cfs/containers')
+  return xanoRequest<any[]>('/stg/warehouse_receipts', 'GET', undefined, API_GROUPS.stg)
 }
 
-export const getContainer = async (id: string) => {
-  return xanoRequest<any>(`/cfs/containers/${id}`)
+export const getContainer = async (containerNumber: string) => {
+  return xanoRequest<any>(`/stg/container/${containerNumber}/status`, 'GET', undefined, API_GROUPS.stg)
 }
 
-export const refreshContainer = async (id: string) => {
-  return xanoRequest(`/cfs/containers/${id}/refresh`, 'POST')
+export const refreshContainer = async (containerNumber: string) => {
+  return xanoRequest<any>(`/stg/container/${containerNumber}/refresh`, 'POST', undefined, API_GROUPS.stg)
 }
 
 export const getDispatchTasks = async () => {
-  return xanoRequest<any[]>('/cfs/tasks')
+  return xanoRequest<any[]>('/stg/tasks', 'GET', undefined, API_GROUPS.stg)
 }
 
 // =====================
-// DOCUMENTS
+// DOCUMENTS (api:E1Skvg8o)
 // =====================
 
-export const getDocuments = async (shipmentId: string) => {
-  return xanoRequest<any[]>(`/shipments/${shipmentId}/documents`)
+export const getDocuments = async (filters?: { shipment_id?: string }) => {
+  const query = filters?.shipment_id ? `?shipment_id=${filters.shipment_id}` : ''
+  return xanoRequest<any[]>(`/documents${query}`, 'GET', undefined, API_GROUPS.agents)
 }
 
-export const uploadDocument = async (shipmentId: string, file: File, docType: string) => {
+export const uploadDocument = async (file: File, metadata: { shipment_id?: string; document_type?: string }) => {
+  const url = `${XANO_BASE}/${API_GROUPS.agents}/documents/upload`
+  const token = getXanoAuthToken()
+  
   const formData = new FormData()
   formData.append('file', file)
-  formData.append('document_type', docType)
+  if (metadata.shipment_id) formData.append('shipment_id', metadata.shipment_id)
+  if (metadata.document_type) formData.append('document_type', metadata.document_type)
   
-  const token = getXanoAuthToken()
-  const response = await fetch(
-    `${XANO_BASE}/${API_GROUPS.main}/shipments/${shipmentId}/documents`,
-    {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    }
-  )
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  })
   
   if (!response.ok) throw new Error('Upload failed')
   return response.json()
 }
 
 // =====================
-// CHAT / CONVERSATIONS (if exists)
+// ACCOUNT (api:dqA59R7v)
 // =====================
 
-export const getConversations = async () => {
-  const chatBase = `${XANO_BASE}/${API_GROUPS.chat}`
-  return xanoRequest<any[]>('/conversations', 'GET', undefined, chatBase)
+export const getAccountDetails = async () => {
+  return xanoRequest<any>('/account/details', 'GET', undefined, API_GROUPS.account)
 }
 
-export const getMessages = async (conversationId: string) => {
-  const chatBase = `${XANO_BASE}/${API_GROUPS.chat}`
-  return xanoRequest<any[]>(`/conversations/${conversationId}/messages`, 'GET', undefined, chatBase)
+export const getTeamMembers = async () => {
+  return xanoRequest<any[]>('/account/my_team_members', 'GET', undefined, API_GROUPS.account)
 }
 
-export const sendMessage = async (conversationId: string, message: string) => {
-  const chatBase = `${XANO_BASE}/${API_GROUPS.chat}`
-  return xanoRequest(`/conversations/${conversationId}/messages`, 'POST', { content: message }, chatBase)
+// =====================
+// LOGS (api:Dg-LSQY9)
+// =====================
+
+export const getUserEvents = async () => {
+  return xanoRequest<any[]>('/logs/user/my_events', 'GET', undefined, API_GROUPS.logs)
 }
